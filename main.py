@@ -85,11 +85,12 @@ def detect_rectangles(imgc):
 
     # Threshold the HSV, trying to extract the yellow lines from the board.
     hsv_thresh = cv2.inRange(hsv, (10, 100, 100), (30, 255, 255))
+    cv2.imshow("HSV Threshold", hsv_thresh)
 
     # Dilate the line so that slightly broken lines become connected.
     kernel = np.ones((5,5), np.uint8)  
     hsv_thresh = cv2.dilate(hsv_thresh, kernel, iterations=1)
-    cv2.imshow("hsv_thresh", hsv_thresh)
+    cv2.imshow("HSV Threshold Dilated", hsv_thresh)
 
     # Detect edges using Canny
     threshold = 50

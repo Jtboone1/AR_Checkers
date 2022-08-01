@@ -1,9 +1,10 @@
 # Description
-This is an "Augmented Reality" way of playing checkers! It works by taking a picture of a checker board, adding it to the directory, and then
-OpenCV reads that image, spits that info into a MiniMax checker AI, then that spits back a desired position, where the user physically moves
-the computers piece, and then their piece again.
+This is an "Augmented Reality" way of playing checkers! You play against an AI, where
+in order to input your moves, you take a picture of a real life checkers board. The AI
+then uses the MiniMax algorithm to display that same image, except that it will draw a line
+where it wants to move.
 
-This process repeats until a sole victor remains.
+This process of picture taking repeats until a sole victor remains.
 
 ## Example Images
 
@@ -18,25 +19,37 @@ blurring filter for detecting circles. The circles
 are found using the Hough circle transform.
 
 2. We convert to HSV and threshold to a value that
-equates to the yellow lines on the board. This allows
-us to use a Canny edge detector to find all the squares
-in the image. This will be important for feeding the AI
-our move.
+equates to the yellow lines on the board. We then
+dilute those rectangle lines to get a more easily readable
+grid of rectangles.
+
+This whole process allows us to use a Canny edge detector 
+to find all the squares in the image. These squares will
+represent the spaces on the checkerboard.
+
+Converting to HSV:
 
 ![HSV](./ImageStepOutputs/hsv1.png "HSV")
 
-From the image below, we can find the rectangles by first finding
-the countours of all the closed areas, and the creating a bounding
+We use the image above to threshold by the intense yellow value
+seen along the lines of the checkerboard.
+
+![Threshold No Dilute](./ImageStepOutputs/HSVThresholdNoDilute2.png "HSV Threshold No Dilution")
+![Threshold](./ImageStepOutputs/hsvThresh2.png "HSV Threshold")
+
+From the image above, we can find the rectangles by first finding
+the contours of all the closed areas, and the creating a bounding
 rectangle around the contours. Since all the squares are about the
 same size, we can just filter the bounding rectangles by a certain
 width and height, so that we don't pickup other bounding rectangles
 that are not spaces in the checkerboard ( Like the board itself! ).
 
-![Threshold](./ImageStepOutputs/hsvThresh1.png "HSV Threshold")
+We can see also why we dilute the pixels of the image. We need the rectangles
+to be enclosed in order for our contour method to detect the shape.
 
 We can then apply our outputs from the canny edge detection,
 as well as the outputs to our Hough transform onto a blank canvas.
-This was extreamly useful for debugging and tweaking the different
+This was extremely useful for debugging and tweaking the different
 values to our system.
 
 ![Debug](./ImageStepOutputs/debug1.png "Debug")
@@ -45,18 +58,20 @@ Here is the debug information overlayed with the final image:
 
 ![Output](./ImageStepOutputs/final1.png "Output")
 
-And finally, we can detect where the pieces are simply by indexing through
-each rectangle, and then just indexing through each circle. If the center of the
-circle is in the rectangle and the overall intensity equates to red, its a red piece,
-else its a black. If no center is found, the square is empty.
+We can then detect where the pieces are simply by indexing through
+each rectangle. For every rectangle, we just index through all the circles
+to see if a center dot is within the bounds of that rectangle. If the center of the
+circle is within the bounds of the rectangle and the overall intensity equates to 
+red, its a red piece, else it is a black piece. If no center is found, the square is empty.
 
-When we feed this to the AI, it spits out it's move. The cool thing about this is that since
-we have our boards state from our image processing program, when we get the move from the AI,
+When we feed this to the AI, it spits out a chosen move. The cool thing about this is that we
+also save the previous board state in code, so when we get the move from the AI,
 we can draw this onto the screen so the user knows which piece to move:
 
 ![AI Move](./AIMoves/ai_move2.png "AI Move")
 
-And then we make our next move, and the process repeats again.
+Finally we move the AIs piece, then make another move ourselves.
+We then take a picture, and repeat the process from the beginning.
 
 ## How to run
 The user moves first.
