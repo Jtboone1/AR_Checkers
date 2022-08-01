@@ -50,7 +50,7 @@ to be enclosed in order for our contour method to detect the shape.
 We can then apply our outputs from the canny edge detection,
 as well as the outputs to our Hough transform onto a blank canvas.
 This was extremely useful for debugging and tweaking the different
-values to our system.
+values of our system.
 
 ![Debug](./ImageStepOutputs/debug1.png "Debug")
 
