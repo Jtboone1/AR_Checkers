@@ -1,9 +1,15 @@
+
+# IMPORTANT!
+##############################################################################################################
+# This code is not ours, it's just someone's checker's AI that we used to input our image program, where     #   
+# we can just take the output of the computer's move and display it on our image.                            #
+# It is however slightly modified in order to accept our image input instead of just the command line input. #
+##############################################################################################################
+
 from copy import deepcopy
 from time import time
+from main import make_move, set_move, remove_piece
 import os
-
-clear = lambda: os.system("clear")
-
 
 class Move(object):   #samo za obavezne poteze covjeka
 
@@ -73,17 +79,7 @@ class Board(object):
 
     def __init__(self):
 
-        while True:
-            choice = input("Is eating a mandatory move[Y/n]:")
-            if choice == "Y":
-                self._must_eat = True
-                break
-            elif choice == "n":
-                self._must_eat = False
-                break
-            else:
-                print("Error, enter Y or n !")
-
+        self._must_eat = False
         self._black_pieces = {}
         self._white_pieces = {}
 
@@ -130,7 +126,6 @@ class Board(object):
                 else:
                     self._black_pieces[element.get_position()] = element
 
-        self.print_board()
 
     def try_right_down(self, piece, moves, board):
         if board[piece.get_position() + 9]:
@@ -183,23 +178,6 @@ class Board(object):
                 return
         else:
             moves[piece.get_position() - 9] = "move"
-
-    def print_board(self):
-        clear()
-        print()
-        counter = 0
-        for i in range(63,-1,-1):
-            if self._board[i]:
-                if self._board[i].is_queen:
-                    print(self._board[i].name + "  |   ", end="")
-                else:
-                    print(self._board[i].name + "   |   ", end="")
-            else:
-                print("-    |   ", end="")
-            counter += 1
-            if counter > 7:
-                print()
-                counter = 0
 
     def all_possible_moves(self, piece):  # prima figuru i vraca sve poteze za nju
         moves = {}
@@ -318,43 +296,19 @@ class Board(object):
             if len(try_moves) != 0 :
                 for key in try_moves:
                     check.append(key)
-                    print(try_moves[key])
                 while True:
                     try:
                         choice = input(
                                 "Enter only the final position of your figure (mandatory move) >> ")
                         if int(choice) in check:
                             try_moves[int(choice)].execute(self)
-                            self.print_board()
                             return
                         else:
                             print("That action is not possible.")
                     except:
                         print("Error, try again. ")
-        piece, moves = self.human_menu()
-        for key in moves:
-            if moves[key] == "move":
-                print("Move ", piece.name, " on field ", key)
-            elif moves[key] != "move":
-                print("Move ", piece.name, " on field ", key, " and eat the piece on field ", moves[key])
-        while True:
-            try:
-                choice = input(
-                    "Enter only the final position of your piece or 'x' if you want to choose another one >> ")
-                if choice == "x":
-                    piece, moves = self.human_menu()
-                    for key in moves:
-                        if moves[key] == "move":
-                            print("Move ", piece.name, " on field ", key)
-                        elif moves[key] != "move":
-                            print("Move ", piece.name, " on field ", key, " and eat the piece on field ",
-                                  moves[key])
-                elif int(choice) in moves.keys():
-                    break
-                else:
-                    print("Error, try again. ")
-            except:
-                print("Error try again. ")
+        piece, moves, destination = self.human_menu()
+        choice = str(destination)
         if moves[int(choice)] == "move":
             self._board[piece.get_position()], self._board[int(choice)] = self._board[int(choice)], self._board[
                 piece.get_position()]
@@ -368,20 +322,11 @@ class Board(object):
             self._board[moves[int(choice)]] = 0
             del self._black_pieces[moves[int(choice)]]
         self._white_pieces[piece.get_position()] = piece
-        self.print_board()
 
     def human_menu(self):
-        while True:
-            try:
-                choice = int(input("Enter the position of a piece that you want to select (0-63) >> "))
-                if choice in self._white_pieces.keys():
-                    break
-                else:
-                    print("There is no white piece on that field.")
-            except:
-                continue
-        moves = self.all_possible_moves(self._white_pieces[choice])
-        return self._white_pieces[choice], moves
+        position, destination = make_move()
+        moves = self.all_possible_moves(self._white_pieces[position])
+        return self._white_pieces[position], moves, destination
 
     def play_computer(self):
         now = time()
@@ -408,32 +353,31 @@ class Board(object):
                 new_board.move_computer(pair[0], move, pair[1], False)
                 if new_board.evaluate_state() == wanted:
                     self.move_computer(pair[0], move, pair[1], True)
-                    print(time()-now)
                     return
                 elif new_board.evaluate_state() > max:
                     max, to_play = new_board.evaluate_state(), (pair[0], move, pair[1])   #ovde upadne kad pogresi pri racunanju
         self.move_computer(to_play[0], to_play[1], to_play[2], True)
-        print(time() - now)
 
     def move_computer(self, position, destination, moves, to_print):
 
         if(to_print):
-            print(position)
-            print(destination)
+            print("AI moving from: " + str(position))
+            print("AI moving to: " + str(destination))
+            set_move(position, destination)
         piece = self._black_pieces[position]
         if moves[destination] == "move":
             self._board[position], self._board[destination] = self._board[destination], self._board[position]
             del self._black_pieces[position]
             piece.set_position(destination)
+            piece.get_position()
         else:
             self._board[position], self._board[destination] = self._board[destination], self._board[position]
             del self._black_pieces[position]
             piece.set_position(destination)
             self._board[moves[destination]] = 0
             del self._white_pieces[moves[destination]]
+            remove_piece(moves[destination])
         self._black_pieces[piece.get_position()] = piece
-        if to_print:
-            self.print_board()
 
 
     def move_human(self, position, destination, moves):
@@ -531,3 +475,6 @@ class Board(object):
             if len(self._white_pieces) < 4:
                 print("Computer won.")
                 exit()
+
+game = Board()
+game.gameplay()

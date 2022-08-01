@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from checkers import Board
 
 # Sort each checker by its X position.
 def compare(item):
@@ -16,224 +15,281 @@ def split(list):
         yield list[i:i + 8]
 
 class CheckerSpace:
-    def __init__(self, checker_type, position):
+    def __init__(self, checker_type, position, point = 0):
         self.checker_type = checker_type
         self.position = position
+        self.point = point
 
+    def print_check(self):
+        print(self.checker_type + " " + str(self.position))
+
+# This is all we need to start our board reading
 board = [
-    CheckerSpace("red", 0),
-    CheckerSpace("red", 1),
-    CheckerSpace("red", 2),
-    CheckerSpace("red", 3),
-    CheckerSpace("red", 4),
-    CheckerSpace("red", 5),
-    CheckerSpace("red", 6),
-    CheckerSpace("red", 7),
-    CheckerSpace("red", 8),
-    CheckerSpace("red", 9),
-    CheckerSpace("red", 10),
-    CheckerSpace("red", 11),
-    CheckerSpace("empty", 12),
-    CheckerSpace("empty", 13),
-    CheckerSpace("empty", 14),
-    CheckerSpace("empty", 15),
-    CheckerSpace("empty", 16),
-    CheckerSpace("empty", 17),
-    CheckerSpace("empty", 18),
-    CheckerSpace("empty", 19),
-    CheckerSpace("black", 20),
-    CheckerSpace("black", 21),
-    CheckerSpace("black", 22),
-    CheckerSpace("black", 23),
-    CheckerSpace("black", 24),
-    CheckerSpace("black", 25),
-    CheckerSpace("black", 25),
-    CheckerSpace("black", 27),
-    CheckerSpace("black", 28),
-    CheckerSpace("black", 29),
-    CheckerSpace("black", 30),
-    CheckerSpace("black", 31)
+    CheckerSpace("red", 16),
+    CheckerSpace("red", 18),
+    CheckerSpace("red", 20),
+    CheckerSpace("red", 22),
+    CheckerSpace("empty", 25),
+    CheckerSpace("empty", 27),
+    CheckerSpace("empty", 29),
+    CheckerSpace("empty", 31)
 ]
 
-imgc = cv2.imread("im4.jpg")
+first_move = True
+blacks_move = [0, 0]
 
-# Read image and convert to gray scale.
-img = cv2.cvtColor(imgc, cv2.COLOR_BGR2GRAY)
+def organize_rects(rect_arr):
 
-# Resize color image.
-dim = (int(imgc.shape[0] * 0.25), int(imgc.shape[1] * 0.25))
-imgc = cv2.resize(imgc, dim, interpolation = cv2.INTER_AREA)
+    # Filter rectangles by their X axis
+    rect_arr.sort(key=compare)
 
-# Resize gray image.
-dim = (int(img.shape[0] * 0.25), int(img.shape[1] * 0.25))
-img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
+    # Split the array of checkers into 8 columns, and sort them by their Y axis.
+    # This will organize the squares from top left to bottom right.
+    organized_checker_spaces = np.array_split(rect_arr, 8)
+    arr = []
+    for col in organized_checker_spaces:
+        checker_list = list(col)
+        checker_list.sort(key=compare_col, reverse=True)
+        arr.append(checker_list)
 
-# Blur the himage for easier detection circle / rectangle detection
-img = cv2.blur(img, (3, 3))
+    # Combine the 8 columns into a single array
+    final_checkers = []
+    for rect_col in arr:
+        for rect in rect_col:
+            final_checkers.append(rect)
 
-# Detect Circles.
-circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1, 90, param1=30, param2=30, minRadius=12, maxRadius=35)
-circles = np.uint16(np.around(circles))
+    return final_checkers
 
-# Detect edges using Canny
-threshold = 20
-canny_output = cv2.Canny(img, threshold, threshold * 2)
-contours, _ = cv2.findContours(canny_output, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+def set_move(position, destination):
+    blacks_move[0] = position
+    blacks_move[1] = destination
 
-# Get bounding rects
-contours_poly = [None]*len(contours)
-boundRect = [None]*len(contours)
-checker_spaces = []
+def remove_piece(position):
+    for piece in board:
+        if piece.position == position:
+            piece.checker_type = "empty"
 
-for i, c in enumerate(contours):
-    contours_poly[i] = cv2.approxPolyDP(c, 3, True)
-    boundRect[i] = cv2.boundingRect(contours_poly[i])
+def make_move():
+    global first_move
+    global board
+    global blacks_move
 
-# Canvas to display only checker rectangles.
-empty_canvas = np.zeros((canny_output.shape[0], canny_output.shape[1], 3), dtype=np.uint8)
+    imgc = cv2.imread("game.jpg")
 
-# Capture rectangles
-for i in range(len(contours)):
-    p1 = (int(boundRect[i][0]), int(boundRect[i][1]))
-    p2 = (int(boundRect[i][0]+boundRect[i][2]), int(boundRect[i][1]+boundRect[i][3]))
+    # Draw computers move so the Player can move their piece on the physical board.
+    if (not first_move):
+        move_img = imgc
 
-    # Filter out any rectangles not part of the board.
-    if(p2[0] - p1[0] > 90 and p2[0] - p1[0] < 140 and p2[1] - p1[1] > 40 and p2[1] - p1[1] < 120):
-        checker_spaces.append(boundRect[i])
+        dim = (int(imgc.shape[0] * 0.25), int(imgc.shape[1] * 0.25))
+        move_img = cv2.resize(imgc, dim, interpolation = cv2.INTER_AREA)
 
-# Filter rectangles by their X axis
-checker_spaces.sort(key=compare)
-filtered_spaces = []
+        p1 = (0, 0)
+        p2 = (0, 0)
 
-# Filter out overlapping rectangles. The Contour function will detect multiple rectangles in the same spot.
-# This just gets rid of those extra rectangles.
-for rect1 in checker_spaces:
-    add = True
-    for rect2 in filtered_spaces:
-        if (abs(rect1[0] - rect2[0]) < 15 and abs(rect1[1] - rect2[1]) < 15):
-            add = False
-            break
+        for piece in board:
+            if (piece.position == blacks_move[0]):
+                p1 = piece.point
+                piece.checker_type = "empty"
+            if (piece.position == blacks_move[1]):
+                p2 = piece.point
+                piece.checker_type = "black"
 
-    if add:
-        filtered_spaces.append(rect1)
+        cv2.line(move_img, p1, p2, (0, 255, 0), 10)
+        cv2.imshow("Move Black Piece", move_img)
 
-print("Should now have 64 checker squares:")
-print(len(filtered_spaces))
+        # Wait for keypress to close.
+        print("AI has chosen! Move black piece to the displayed location, then press any key on the image to continue...")
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
-# Split the array of checkers into 8 columns, and sort them by their Y axis.
-# This will organize the squares from top left to bottom right.
-organized_checker_spaces = list(split(filtered_spaces))
-for col in organized_checker_spaces:
-    col.sort(key=compare_col, reverse=True)
+    print("Move your piece, take a picture, and save it in this directory as game.jpg")
+    input("Press any to continue...")
 
-non_useless_checker_spaces = []
+    imgc = cv2.imread("game.jpg")
 
-# Remove useless squares (Black Squares)
-i = 0
-for rect_col in organized_checker_spaces:
-    filt_col = []
-    j = i
-    for rect in rect_col:
-        if j % 2 == 0:
-            filt_col.append(rect)
+    # Read image and convert to gray scale.
+    img = cv2.cvtColor(imgc, cv2.COLOR_BGR2GRAY)
 
-        j = j + 1
+    # Resize color image.
+    dim = (int(imgc.shape[0] * 0.25), int(imgc.shape[1] * 0.25))
+    imgc = cv2.resize(imgc, dim, interpolation = cv2.INTER_AREA)
 
-    non_useless_checker_spaces.append(filt_col)
+    # Resize gray image.
+    dim = (int(img.shape[0] * 0.25), int(img.shape[1] * 0.25))
+    img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
 
-    if i == 0:
-        i = 1
-    else:
-        i = 0
+    # Blur the image for easier detection circle / rectangle detection
+    img = cv2.blur(img, (3, 3))
 
-# Combine the 8 columns into a single array
-final_checkers = []
-for rect_col in non_useless_checker_spaces:
-    for rect in rect_col:
-        final_checkers.append(rect)
+    ## convert to hsv
+    hsv = cv2.cvtColor(imgc, cv2.COLOR_BGR2HSV)
+    cv2.imshow("hsv", hsv)
+    hsv_thresh = cv2.inRange(hsv, (10, 100, 100), (30, 255, 255))
+    kernel = np.ones((5,5), np.uint8)  # note this is a horizontal kernel
+    hsv_thresh = cv2.dilate(hsv_thresh, kernel, iterations=1)
+    cv2.imshow("hsv_thresh", hsv_thresh)
 
-final_img = imgc
+    cnts = cv2.findContours(hsv_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+    for cnt in cnts:
+        approx = cv2.contourArea(cnt)
 
-# Finally draw rectangles.
-for rect in final_checkers:
-    color = (0, 255, 0)
+    cv2.imshow('Median Blur', img)
 
-    p1 = (int(rect[0]), int(rect[1]))
-    p2 = (int(rect[0]+rect[2]), int(rect[1]+rect[3]))
+    # Detect Circles.
+    circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1, 90, param1= 31, param2=24, minRadius=15, maxRadius=35)
+    circles = np.uint16(np.around(circles))
 
-    cv2.rectangle(empty_canvas, p1, p2, color, 2)
-    cv2.rectangle(final_img, p1, p2, color, 2)
+    # Detect edges using Canny
+    threshold = 50
+    canny_output = cv2.Canny(hsv_thresh, threshold, threshold * 2)
+    contours, _ = cv2.findContours(canny_output, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-new_board = []
+    # Get bounding rects
+    contours_poly = [None]*len(contours)
+    boundRect = [None]*len(contours)
+    checker_spaces = []
 
-for index, rect in enumerate(final_checkers):
+    for i, c in enumerate(contours):
+        contours_poly[i] = cv2.approxPolyDP(c, 3, True)
+        boundRect[i] = cv2.boundingRect(contours_poly[i])
 
-    # Here we fill the new_board array with the position / type of each rectangle
-    # The position will be 0 - 31 and the type can either be red, black or empty
-    rect_type = "empty"
+    # Canvas to display only checker rectangles.
+    empty_canvas = np.zeros((canny_output.shape[0], canny_output.shape[1], 3), dtype=np.uint8)
 
-    for circle in circles[0, :]:
-        x, y, r = circle
+    # Capture rectangles
+    for i in range(len(contours)):
+        p1 = (int(boundRect[i][0]), int(boundRect[i][1]))
+        p2 = (int(boundRect[i][0]+boundRect[i][2]), int(boundRect[i][1]+boundRect[i][3]))
 
-        # If their is a piece on the square
-        if (x > rect[0] and x < rect[0]+rect[2] and y > rect[1] and y < rect[1]+rect[3]):
-            # This next bit of code is how we find what color the piece is
+        # Filter out any rectangles not part of the board.
+        if(abs(p2[0] - p1[0]) > 90 and abs(p2[0] - p1[0]) < 125 and abs(p2[1] - p1[1]) > 45 and p2[1] - p1[1] < 80):
+            checker_spaces.append(boundRect[i])
 
-            roi = imgc[y - r: y + r, x - r: x + r]
+    filtered_spaces = []
 
-            # Generate mask
-            width, height = roi.shape[:2]
-            mask = np.zeros((width, height, 3), roi.dtype)
-            cv2.circle(mask, (int(width / 2), int(height / 2)), r, (255, 255, 255), -1)
-            dst = cv2.bitwise_and(roi, mask)
+    # Filter out overlapping rectangles. The Contour function will detect multiple rectangles in the same spot.
+    # This just gets rid of those extra rectangles.
+    for rect1 in checker_spaces:
+        add = True
+        for rect2 in filtered_spaces:
+            if (abs(rect1[0] - rect2[0]) < 15 and abs(rect1[1] - rect2[1]) < 15):
+                add = False
+                break
 
-            # Find the RGB values within each circles mask
-            data = []
-            for i in range(3):
-                channel = dst[:, :, i]
-                indices = np.where(channel != 0)[0]
-                color = np.mean(channel[indices])
-                data.append(int(color))
+        if add:
+            filtered_spaces.append(rect1)
 
-            # We only really need the red to determine what type of piece we have
-            _, _, red = data
+    final_checkers = organize_rects(filtered_spaces)
+    final_img = imgc
 
-            color_empty_canvas = (0, 0, 0)
-            color_final = (0, 0, 0)
+    # Finally draw rectangles.
+    for rect in final_checkers:
+        color = (0, 255, 0)
 
-            if (red > 150):
-                color_empty_canvas = (30, 30, 255)
-                color_final = (0, 255, 0)
-                rect_type = "red"
-            else:
-                color_empty_canvas = (255, 0, 0)
-                color_final = (255, 50, 50)
-                rect_type = "black"
+        p1 = (int(rect[0]), int(rect[1]))
+        p2 = (int(rect[0]+rect[2]), int(rect[1]+rect[3]))
 
-            # Draw circle outline + center dot.
-            center = (circle[0], circle[1])
-            radius = circle[2]
-            cv2.circle(empty_canvas, center, 1, color_empty_canvas, 3)
-            cv2.circle(empty_canvas, center, radius, color_empty_canvas, 3)
-            cv2.circle(final_img, center, 1, color_final, 3)
-            cv2.circle(final_img, center, radius, color_final, 3)
 
-            break
+        cv2.rectangle(empty_canvas, p1, p2, color, 2)
+        cv2.rectangle(final_img, p1, p2, color, 2)
 
-    new_board.append(CheckerSpace(rect_type, index))
+    new_board = []
+
+    for index, rect in enumerate(final_checkers):
+
+        # Here we fill the new_board array with the position / type of each rectangle
+        # The position will be 0 - 31 and the type can either be red, black or empty
+        rect_type = "empty"
+
+        for circle in circles[0, :]:
+            x, y, r = circle
+
+            # If their is a piece on the square
+            if (x > rect[0] and x < rect[0]+rect[2] and y > rect[1] and y < rect[1]+rect[3]):
+                # This next bit of code is how we find what color the piece is
+
+                roi = imgc[y - r: y + r, x - r: x + r]
+
+                # Generate mask
+                width, height = roi.shape[:2]
+                mask = np.zeros((width, height, 3), roi.dtype)
+                cv2.circle(mask, (int(width / 2), int(height / 2)), r, (255, 255, 255), -1)
+                dst = cv2.bitwise_and(roi, mask)
+
+                # Find the RGB values within each circles mask
+                data = []
+                for i in range(3):
+                    channel = dst[:, :, i]
+                    indices = np.where(channel != 0)[0]
+                    color = np.mean(channel[indices])
+                    data.append(int(color))
+
+                blue, green, red = data
+
+                color_empty_canvas = (0, 0, 0)
+                color_final = (0, 0, 0)
+
+                if (red > 110 and blue < 210 and green < 210):
+                    color_empty_canvas = (30, 30, 255)
+                    color_final = (0, 255, 0)
+                    rect_type = "red"
+                else:
+                    color_empty_canvas = (255, 0, 0)
+                    color_final = (255, 50, 50)
+                    rect_type = "black"
+
+                # Draw circle outline + center dot.
+                center = (circle[0], circle[1])
+                radius = circle[2]
+                cv2.circle(empty_canvas, center, 1, color_empty_canvas, 3)
+                cv2.circle(empty_canvas, center, radius, color_empty_canvas, 3)
+                cv2.circle(final_img, center, 1, color_final, 3)
+                cv2.circle(final_img, center, radius, color_final, 3)
+
+                break
+
+        new_board.append(CheckerSpace(rect_type, index, (rect[0] + 50, rect[1] + 30)))
+        
+    # Show programs output for spaces + checkers.
+    cv2.imshow("Empty Canvas", empty_canvas)
+
+    # Show img with empty canvas overlayed.
+    cv2.imshow("Final", final_img)
+
+    # Find position of moved piece.
+    position = 0
+    destination = 0
+    for space1 in board:
+        for space2 in new_board:
+            if space1.position == space2.position and space1.checker_type == "red" and space2.checker_type == "empty":
+                position = space1.position
+
+    # Find Destination of moved piece
+    for space1 in board:
+        for space2 in new_board:
+            if space1.position == space2.position and space1.checker_type == "empty" and space2.checker_type == "red":
+                destination = space1.position
+
+    print("Printing Old Board")
+    for space in board:
+        space.print_check()
+
+    print("Printing New Board")
+    for space in new_board:
+        space.print_check()
     
-for piece in new_board:
-    print("Square " + str(piece.position) + " : Type " + piece.checker_type)
+    print("Piece moving from: " + str(position))
+    print("Piece moving to: " + str(destination))
 
-# Show image.
-cv2.imshow("Final Image", imgc)
+    first_move = False
+    board = new_board
 
-# Show programs output for spaces + checkers.
-cv2.imshow("Empty Canvas", empty_canvas)
+    print("Press any key on the images to continue...")
 
-# Show img with empty canvas overlayed.
-cv2.imshow("Final", final_img)
+    # Wait for keypress to close.
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
-# Wait for keypress to close.
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+    # Tell AI what move we've made from reading the image.
+    return (position, destination)
