@@ -50,7 +50,7 @@ each rectangle, and then just indexing through each circle. If the center of the
 circle is in the rectangle and the overall intensity equates to red, its a red piece,
 else its a black. If no center is found, the square is empty.
 
-When we feed this to the AI, it spits out it's move, and the cool thing about this is that since
+When we feed this to the AI, it spits out it's move. The cool thing about this is that since
 we have our boards state from our image processing program, when we get the move from the AI,
 we can draw this onto the screen so the user knows which piece to move:
 
