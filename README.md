@@ -60,7 +60,7 @@ Here is the debug information overlayed with the final image:
 
 We can then detect where the pieces are simply by indexing through
 each rectangle. For every rectangle, we just index through all the circles
-to see if a center dot is within the bounds of that rectangle. If the center of the
+to see if a center dot is within the bounds of that rectangle. If the center of a
 circle is within the bounds of the rectangle and the overall intensity equates to 
 red, its a red piece, else it is a black piece. If no center is found, the square is empty.
 
