@@ -142,17 +142,84 @@ def detect_rectangles(imgc):
 def detect_circles(imgc):
 
     # Read image and convert to gray scale.
-    img = cv2.cvtColor(imgc, cv2.COLOR_BGR2GRAY)
+    img_gray = cv2.cvtColor(imgc, cv2.COLOR_BGR2GRAY)
 
     # Blur the image for easier detection circle / rectangle detection.
-    img = cv2.blur(img, (3, 3))
-    cv2.imshow('Median Blur', img)
-
+    img_gray = cv2.blur(img_gray, (3, 3))
     # Detect Circles.
-    circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1, 90, param1= 31, param2=24, minRadius=15, maxRadius=35)
+    circles = cv2.HoughCircles(img_gray, cv2.HOUGH_GRADIENT, 1, 90, param1= 31, param2=24, minRadius=15, maxRadius=35)
     circles = np.uint16(np.around(circles))
 
-    return circles
+    return (circles, img_gray)
+
+def draw_board(imgc, images, board_rects, board_circs):
+
+    # Draw rectangles.
+    for rect in board_rects:
+        color = (0, 255, 0)
+
+        p1 = (int(rect[0]), int(rect[1]))
+        p2 = (int(rect[0]+rect[2]), int(rect[1]+rect[3]))
+
+        for img in images:
+            cv2.rectangle(img, p1, p2, color, 2)
+
+    # Use rectangles to construct new board by iterating over circles.
+    new_board = []
+
+    # Draw circles and while doing so, determine what each space on the board is (Red, Black or Empty).
+    for index, rect in enumerate(board_rects):
+
+        # Here we fill the new_board array with the position / type of each rectangle
+        # The position will be 0 - 31 and the type can either be red, black or empty
+        rect_type = "empty"
+
+        for circle in board_circs[0, :]:
+            x, y, r = circle
+
+            # If their is a piece on the square
+            if (x > rect[0] and x < rect[0]+rect[2] and y > rect[1] and y < rect[1]+rect[3]):
+                # This next bit of code is how we find what color the piece is
+
+                roi = imgc[y - r: y + r, x - r: x + r]
+
+                # Generate mask
+                width, height = roi.shape[:2]
+                mask = np.zeros((width, height, 3), roi.dtype)
+                cv2.circle(mask, (int(width / 2), int(height / 2)), r, (255, 255, 255), -1)
+                dst = cv2.bitwise_and(roi, mask)
+
+                # Find the RGB values within each board_circs mask
+                data = []
+                for i in range(3):
+                    channel = dst[:, :, i]
+                    indices = np.where(channel != 0)[0]
+                    color = np.mean(channel[indices])
+                    data.append(int(color))
+
+                blue, green, red = data
+                color = (0, 0, 0)
+
+                if (red > 100 and blue < 210 and green < 210):
+                    color = (30, 30, 255)
+                    rect_type = "red"
+                else:
+                    color = (255, 30, 30)
+                    rect_type = "black"
+
+                # Draw circle outline + center dot.
+                center = (circle[0], circle[1])
+                radius = circle[2]
+
+                for img in images:
+                    cv2.circle(img, center, 1, color, 3)
+                    cv2.circle(img, center, radius, color, 3)
+
+                break
+
+        new_board.append(CheckerSpace(rect_type, index, (rect[0] + 50, rect[1] + 30)))
+
+    return new_board
 
 def make_move():
     global first_move
@@ -200,80 +267,17 @@ def make_move():
     imgc = cv2.resize(imgc, dim, interpolation = cv2.INTER_AREA)
 
     # Get circles and rectangles
-    board_circs = detect_circles(imgc)
+    (board_circs, img_gray) = detect_circles(imgc)
     (board_rects, empty_canvas) = detect_rectangles(imgc)
 
     # Final image will have the empty canvas layered over the original image.
     final_img = imgc
 
-    # Draw rectangles.
-    for rect in board_rects:
-        color = (0, 255, 0)
+    # Create a new board as an array, and draw the rectangles and circles on the passed in array of images.
+    new_board = draw_board(imgc, [img_gray, empty_canvas, final_img], board_rects, board_circs)
 
-        p1 = (int(rect[0]), int(rect[1]))
-        p2 = (int(rect[0]+rect[2]), int(rect[1]+rect[3]))
-
-        cv2.rectangle(empty_canvas, p1, p2, color, 2)
-        cv2.rectangle(final_img, p1, p2, color, 2)
-
-    # Use rectangles to construct new board.
-    new_board = []
-
-    # Draw board_circs and while doing so, determine what each space on the board is (Red, Black or Empty).
-    for index, rect in enumerate(board_rects):
-
-        # Here we fill the new_board array with the position / type of each rectangle
-        # The position will be 0 - 31 and the type can either be red, black or empty
-        rect_type = "empty"
-
-        for circle in board_circs[0, :]:
-            x, y, r = circle
-
-            # If their is a piece on the square
-            if (x > rect[0] and x < rect[0]+rect[2] and y > rect[1] and y < rect[1]+rect[3]):
-                # This next bit of code is how we find what color the piece is
-
-                roi = imgc[y - r: y + r, x - r: x + r]
-
-                # Generate mask
-                width, height = roi.shape[:2]
-                mask = np.zeros((width, height, 3), roi.dtype)
-                cv2.circle(mask, (int(width / 2), int(height / 2)), r, (255, 255, 255), -1)
-                dst = cv2.bitwise_and(roi, mask)
-
-                # Find the RGB values within each board_circs mask
-                data = []
-                for i in range(3):
-                    channel = dst[:, :, i]
-                    indices = np.where(channel != 0)[0]
-                    color = np.mean(channel[indices])
-                    data.append(int(color))
-
-                blue, green, red = data
-
-                color_empty_canvas = (0, 0, 0)
-                color_final = (0, 0, 0)
-
-                if (red > 110 and blue < 210 and green < 210):
-                    color_empty_canvas = (30, 30, 255)
-                    color_final = (0, 255, 0)
-                    rect_type = "red"
-                else:
-                    color_empty_canvas = (255, 0, 0)
-                    color_final = (255, 50, 50)
-                    rect_type = "black"
-
-                # Draw circle outline + center dot.
-                center = (circle[0], circle[1])
-                radius = circle[2]
-                cv2.circle(empty_canvas, center, 1, color_empty_canvas, 3)
-                cv2.circle(empty_canvas, center, radius, color_empty_canvas, 3)
-                cv2.circle(final_img, center, 1, color_final, 3)
-                cv2.circle(final_img, center, radius, color_final, 3)
-
-                break
-
-        new_board.append(CheckerSpace(rect_type, index, (rect[0] + 50, rect[1] + 30)))
+    # Show grayed image.
+    cv2.imshow('Median Blur', img_gray)
         
     # Show programs output for spaces + checkers.
     cv2.imshow("Debug Canvas", empty_canvas)
