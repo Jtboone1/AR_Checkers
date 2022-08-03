@@ -38,8 +38,8 @@ seen along the lines of the checkerboard.
 ![Threshold](./ImageStepOutputs/dilute3.png "HSV Threshold")
 
 From the image above, we can find the rectangles by first finding
-the contours of all the closed areas, and the creating a bounding
-rectangle around the contours. Since all the squares are about the
+the contours of all the closed areas. We can then create a bounding
+rectangle around all contours. Since all the squares are about the
 same size, we can just filter the bounding rectangles by a certain
 width and height, so that we don't pickup other bounding rectangles
 that are not spaces in the checkerboard ( Like the board itself! ).
