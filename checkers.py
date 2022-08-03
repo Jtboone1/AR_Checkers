@@ -8,7 +8,7 @@
 
 from copy import deepcopy
 from time import time
-from main import make_move, set_move, remove_piece
+from main import make_move, set_move
 import os
 
 class Move(object):   #samo za obavezne poteze covjeka
@@ -290,23 +290,7 @@ class Board(object):
 
 
     def play_human(self):
-        if self._must_eat:
-            check = []
-            try_moves = self.get_eating_moves()
-            if len(try_moves) != 0 :
-                for key in try_moves:
-                    check.append(key)
-                while True:
-                    try:
-                        choice = input(
-                                "Enter only the final position of your figure (mandatory move) >> ")
-                        if int(choice) in check:
-                            try_moves[int(choice)].execute(self)
-                            return
-                        else:
-                            print("That action is not possible.")
-                    except:
-                        print("Error, try again. ")
+
         piece, moves, destination = self.human_menu()
         choice = str(destination)
         if moves[int(choice)] == "move":
@@ -322,6 +306,9 @@ class Board(object):
             self._board[moves[int(choice)]] = 0
             del self._black_pieces[moves[int(choice)]]
         self._white_pieces[piece.get_position()] = piece
+        
+        print("Current Board State:")
+
 
     def human_menu(self):
         position, destination = make_move()
@@ -376,7 +363,6 @@ class Board(object):
             piece.set_position(destination)
             self._board[moves[destination]] = 0
             del self._white_pieces[moves[destination]]
-            remove_piece(moves[destination])
         self._black_pieces[piece.get_position()] = piece
 
 

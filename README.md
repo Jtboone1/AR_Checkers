@@ -29,13 +29,13 @@ represent the spaces on the checkerboard.
 
 Converting to HSV:
 
-![HSV](./ImageStepOutputs/hsv1.png "HSV")
+![HSV](./ImageStepOutputs/hsv3.png "HSV")
 
 We use the image above to threshold by the intense yellow value
 seen along the lines of the checkerboard.
 
-![Threshold No Dilute](./ImageStepOutputs/HSVThresholdNoDilute2.png "HSV Threshold No Dilution")
-![Threshold](./ImageStepOutputs/hsvThresh2.png "HSV Threshold")
+![Threshold No Dilute](./ImageStepOutputs/dilute3.png "HSV Threshold No Dilution")
+![Threshold](./ImageStepOutputs/thresh3.png "HSV Threshold")
 
 From the image above, we can find the rectangles by first finding
 the contours of all the closed areas, and the creating a bounding
@@ -52,11 +52,11 @@ as well as the outputs to our Hough transform onto a blank canvas.
 This was extremely useful for debugging and tweaking the different
 values of our system.
 
-![Debug](./ImageStepOutputs/debug1.png "Debug")
+![Debug](./ImageStepOutputs/debug3.png "Debug")
 
 Here is the debug information overlayed with the final image:
 
-![Output](./ImageStepOutputs/final1.png "Output")
+![Output](./ImageStepOutputs/final3.png "Output")
 
 We can then detect where the pieces are simply by indexing through
 each rectangle. For every rectangle, we just index through all the circles
@@ -68,7 +68,7 @@ When we feed this to the AI, it spits out a chosen move. The cool thing about th
 also save the previous board state in code, so when we get the move from the AI,
 we can draw this onto the screen so the user knows which piece to move:
 
-![AI Move](./AIMoves/ai_move2.png "AI Move")
+![AI Move](./AIMoves/ai3.png "AI Move")
 
 Finally we move the AIs piece, then make another move ourselves.
 We then take a picture, and repeat the process from the beginning.

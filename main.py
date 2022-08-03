@@ -75,26 +75,49 @@ def remove_piece(position):
         if piece.position == position:
             piece.checker_type = "empty"
 
+def capture_piece(blacks_move, position):
+    if (blacks_move[0] - 16 + 2 == blacks_move[1]):
+        print(f'REMOVING PIECE: {blacks_move[0] - 8 + 1}')
+        remove_piece(blacks_move[0] - 8 + 1)
+    if (blacks_move[0] - 16 - 2 == blacks_move[1]):
+        print(f'REMOVING PIECE: {blacks_move[0] - 8 - 1}')
+        remove_piece(blacks_move[0] - 8 - 1)
+    if (blacks_move[0] + 16 + 2 == blacks_move[1]):
+        print(f'REMOVING PIECE: {blacks_move[0] + 8 + 1}')
+        remove_piece(blacks_move[0] + 8 + 1)
+    if (blacks_move[0] + 16 - 2 == blacks_move[1]):
+        print(f'REMOVING PIECE: {blacks_move[0] + 8 - 1}')
+        remove_piece(blacks_move[0] + 8 - 1)
+
+def resize(img):
+
+    width = int(img.shape[1] * .15)
+    height = int(img.shape[0] * .15)
+    dim = (width, height)
+    
+    # resize image
+    return cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
+
+
 # Detects squares on board and returns those squares as OpenCV bounding Rectangles,
 # and an empty canvas to display said rectangles.
 def detect_rectangles(imgc):
 
     # convert to hsv
     hsv = cv2.cvtColor(imgc, cv2.COLOR_BGR2HSV)
-    cv2.imshow("hsv", hsv)
+    cv2.imshow("hsv", resize(hsv))
 
     # Threshold the HSV, trying to extract the yellow lines from the board.
-    hsv_thresh = cv2.inRange(hsv, (10, 100, 100), (30, 255, 255))
-    cv2.imshow("HSV Threshold", hsv_thresh)
+    hsv_thresh = cv2.inRange(hsv, (5, 100, 100), (30, 255, 255))
+    cv2.imshow("HSV Threshold", resize(hsv_thresh))
 
     # Dilate the line so that slightly broken lines become connected.
-    kernel = np.ones((5,5), np.uint8)  
+    kernel = np.ones((30,30), np.uint8)  
     hsv_thresh = cv2.dilate(hsv_thresh, kernel, iterations=1)
-    cv2.imshow("HSV Threshold Dilated", hsv_thresh)
+    cv2.imshow("HSV Threshold Dilated", resize(hsv_thresh))
 
     # Detect edges using Canny
-    threshold = 50
-    canny_output = cv2.Canny(hsv_thresh, threshold, threshold * 2)
+    canny_output = cv2.Canny(hsv_thresh, 90, 270)
     contours, _ = cv2.findContours(canny_output, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     # Get bounding rects
@@ -111,14 +134,40 @@ def detect_rectangles(imgc):
     for cnt in cnts:
         approx = cv2.contourArea(cnt)
 
+    mean_height = 0
+    mean_width = 0
+    max_height = 0
+    max_width = 0
+    min_width = 1000
+    min_height = 1000
+    rec_count = 0
+
     # Capture rectangles by drawing bounding rectangles around contours.
     for i in range(len(contours)):
         p1 = (int(boundRect[i][0]), int(boundRect[i][1]))
         p2 = (int(boundRect[i][0]+boundRect[i][2]), int(boundRect[i][1]+boundRect[i][3]))
 
+        width = abs(p2[0] - p1[0])
+        height = abs(p2[1] - p1[1])
+
         # Filter out any rectangles not part of the board.
-        if(abs(p2[0] - p1[0]) > 90 and abs(p2[0] - p1[0]) < 125 and abs(p2[1] - p1[1]) > 45 and p2[1] - p1[1] < 80):
+        if(width > 280 and width < 330 and height > 250 and height < 330):
+
+            # Collect stats for debugging.
+            max_width = max(max_width, width)
+            max_height = max(max_height, height)
+            min_width = min(min_width, width)
+            min_height = min(min_height, height)
+            rec_count += 1
+            mean_width += width
+            mean_height += height
+
             checker_spaces.append(boundRect[i])
+
+    mean_width /= rec_count
+    mean_height /= rec_count
+
+    print(f'Rectangle Stats:\n-----\nMean Width: {int(mean_width)} \nMax Width: {int(max_width)} \nMin Width: {min_width} \nMean Height: {int(mean_height)} \nMax Height {max_height} \nMin Height {min_height}\n-----')
 
     filtered_spaces = []
 
@@ -137,6 +186,7 @@ def detect_rectangles(imgc):
     final_checkers = organize_rects(filtered_spaces)
     empty_canvas = np.zeros((canny_output.shape[0], canny_output.shape[1], 3), dtype=np.uint8)
 
+    print(f'Total Checkers Detected (Should be 64): {len(final_checkers)}')
     return (final_checkers, empty_canvas)
 
 def detect_circles(imgc):
@@ -145,9 +195,9 @@ def detect_circles(imgc):
     img_gray = cv2.cvtColor(imgc, cv2.COLOR_BGR2GRAY)
 
     # Blur the image for easier detection circle / rectangle detection.
-    img_gray = cv2.blur(img_gray, (3, 3))
+    img_gray = cv2.blur(img_gray, (20, 20))
     # Detect Circles.
-    circles = cv2.HoughCircles(img_gray, cv2.HOUGH_GRADIENT, 1, 90, param1= 31, param2=24, minRadius=15, maxRadius=35)
+    circles = cv2.HoughCircles(img_gray, cv2.HOUGH_GRADIENT, 1, 350, param1=19, param2=20, minRadius=105, maxRadius=120)
     circles = np.uint16(np.around(circles))
 
     return (circles, img_gray)
@@ -162,13 +212,13 @@ def draw_board(imgc, images, board_rects, board_circs):
         p2 = (int(rect[0]+rect[2]), int(rect[1]+rect[3]))
 
         for img in images:
-            cv2.rectangle(img, p1, p2, color, 2)
+            cv2.rectangle(img, p1, p2, color, 15)
 
     # Use rectangles to construct new board by iterating over circles.
     new_board = []
 
     # Draw circles and while doing so, determine what each space on the board is (Red, Black or Empty).
-    for index, rect in enumerate(board_rects):
+    for position, rect in enumerate(board_rects):
 
         # Here we fill the new_board array with the position / type of each rectangle
         # The position will be 0 - 31 and the type can either be red, black or empty
@@ -181,43 +231,48 @@ def draw_board(imgc, images, board_rects, board_circs):
             if (x > rect[0] and x < rect[0]+rect[2] and y > rect[1] and y < rect[1]+rect[3]):
                 # This next bit of code is how we find what color the piece is
 
-                roi = imgc[y - r: y + r, x - r: x + r]
+                # Crete a black screen with a white circle as a mask
+                mask = np.zeros(imgc.shape[:2], dtype="uint8")
+                cv2.circle(mask, (x, y), circle[2], (255, 255, 255), -1)
+            
+                # Find the average values of the mask within said image.
+                mean = cv2.mean(imgc, mask)
 
-                # Generate mask
-                width, height = roi.shape[:2]
-                mask = np.zeros((width, height, 3), roi.dtype)
-                cv2.circle(mask, (int(width / 2), int(height / 2)), r, (255, 255, 255), -1)
-                dst = cv2.bitwise_and(roi, mask)
+                # Only need average red value to figure out if it's red or black.
+                b, g, r, _ = mean
 
-                # Find the RGB values within each board_circs mask
-                data = []
-                for i in range(3):
-                    channel = dst[:, :, i]
-                    indices = np.where(channel != 0)[0]
-                    color = np.mean(channel[indices])
-                    data.append(int(color))
-
-                blue, green, red = data
-                color = (0, 0, 0)
-
-                if (red > 100 and blue < 210 and green < 210):
-                    color = (30, 30, 255)
+                if (r > 115):
                     rect_type = "red"
                 else:
-                    color = (255, 30, 30)
                     rect_type = "black"
+
+                color = (255, 255, 255)
 
                 # Draw circle outline + center dot.
                 center = (circle[0], circle[1])
                 radius = circle[2]
 
-                for img in images:
-                    cv2.circle(img, center, 1, color, 3)
-                    cv2.circle(img, center, radius, color, 3)
+                for index, img in enumerate(images):
+                    color = None
 
+                    if (rect_type == "red" and index == 0):
+                        color = (255, 255, 255)
+                    elif (rect_type == "red" and index == 1):
+                        color = (0, 0, 255)
+                    elif (rect_type == "red" and index == 2):
+                        color = (0, 0, 0)
+                    elif (rect_type == "black" and index == 0):
+                        color = (0, 0, 0)
+                    elif (rect_type == "black" and index == 1):
+                        color = (255, 200, 0)
+                    else:
+                        color = (255, 255, 255)
+
+                    cv2.circle(img, center, 1, color, 15)
+                    cv2.circle(img, center, radius, color, 15)
                 break
 
-        new_board.append(CheckerSpace(rect_type, index, (rect[0] + 50, rect[1] + 30)))
+        new_board.append(CheckerSpace(rect_type, position, (rect[0] + 50, rect[1] + 30)))
 
     return new_board
 
@@ -232,24 +287,27 @@ def make_move():
         print("Move your piece, take a picture, and save it in the \"OurMoves\" folder")
         img_name = input("Please enter the name of the file: ")
         imgc = cv2.imread(f"./OurMoves/{img_name}.jpg")
-        
+       
     # Draw computers move so the Player can move their piece on the physical board.
     if not first_move:
         move_img = imgc
 
         p1 = (0, 0)
         p2 = (0, 0)
+        capture_piece(blacks_move, board)
 
         for piece in board:
             if (piece.position == blacks_move[0]):
-                p1 = piece.point
+                p1 = (piece.point[0] + 130, piece.point[1] + 130)
                 piece.checker_type = "empty"
             if (piece.position == blacks_move[1]):
-                p2 = piece.point
+                p2 = (piece.point[0] + 130, piece.point[1] + 130)
                 piece.checker_type = "black"
 
-        cv2.line(move_img, p1, p2, (0, 255, 0), 10)
-        cv2.imshow("Move Black Piece", move_img)
+        cv2.line(move_img, p1, p2, (0, 255, 0), 30)
+
+        # resize image and display
+        cv2.imshow("Move Black Piece", resize(move_img))
 
         # Wait for keypress to close.
         print("AI has chosen! Move black piece to the displayed location, then press any key on the image to continue...")
@@ -262,30 +320,33 @@ def make_move():
         img_name = input("Please enter the name of the file: ")
         imgc = cv2.imread(f"./OurMoves/{img_name}.jpg")
     
-    # Resize color image.
-    dim = (int(imgc.shape[0] * 0.25), int(imgc.shape[1] * 0.25))
-    imgc = cv2.resize(imgc, dim, interpolation = cv2.INTER_AREA)
-
     # Get circles and rectangles
     (board_circs, img_gray) = detect_circles(imgc)
     (board_rects, empty_canvas) = detect_rectangles(imgc)
 
-    # Final image will have the empty canvas layered over the original image.
-    final_img = imgc
-
     # Create a new board as an array, and draw the rectangles and circles on the passed in array of images.
-    new_board = draw_board(imgc, [img_gray, empty_canvas, final_img], board_rects, board_circs)
+    new_board = draw_board(imgc, [img_gray, empty_canvas, imgc], board_rects, board_circs)
 
     # Show grayed image.
-    cv2.imshow('Median Blur', img_gray)
+    cv2.imshow('Median Blur', resize(img_gray))
         
     # Show programs output for spaces + checkers.
-    cv2.imshow("Debug Canvas", empty_canvas)
+    cv2.imshow("Debug Canvas", resize(empty_canvas))
 
     # Show img with the overlayed empty canvas.
-    cv2.imshow("Final", final_img)
+    cv2.imshow("Final", resize(imgc))
 
     # Find position of moved piece.
+
+    print("BOARD")
+    for index, piece in enumerate(board):
+        print(f'{piece.position}: {piece.checker_type}' )
+
+    print("NEWBOARD")
+    for index, piece in enumerate(new_board):
+        print(f'{piece.position}: {piece.checker_type}' )
+
+
     position = 0
     destination = 0
     for space1 in board:
