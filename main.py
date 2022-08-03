@@ -69,12 +69,13 @@ def set_move(position, destination):
     blacks_move[0] = position
     blacks_move[1] = destination
 
-# Used by AI piece when it captures a red piece.
 def remove_piece(position):
     for piece in board:
         if piece.position == position:
             piece.checker_type = "empty"
 
+# If the black piece has skipped over a column, we know that it has capture
+# one of our pieces, so we need to remove that piece from the board.
 def capture_piece(blacks_move, position):
     if (blacks_move[0] - 16 + 2 == blacks_move[1]):
         print(f'REMOVING PIECE: {blacks_move[0] - 8 + 1}')
@@ -336,17 +337,7 @@ def make_move():
     # Show img with the overlayed empty canvas.
     cv2.imshow("Final", resize(imgc))
 
-    # Find position of moved piece.
-
-    print("BOARD")
-    for index, piece in enumerate(board):
-        print(f'{piece.position}: {piece.checker_type}' )
-
-    print("NEWBOARD")
-    for index, piece in enumerate(new_board):
-        print(f'{piece.position}: {piece.checker_type}' )
-
-
+    # Find Position of piece before it moves.
     position = 0
     destination = 0
     for space1 in board:
