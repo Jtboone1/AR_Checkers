@@ -8,9 +8,9 @@ This process of picture taking repeats until a sole victor remains.
 
 ## Example Images
 
-First take an image:
+First take an image of our move:
 
-![Our Move](./OurMoves/game1.jpg "Our Move" )
+![Our Move](./OurMoves/move3.jpg "Our Move" )
 
 We then Convert this image into two separate images:
 
