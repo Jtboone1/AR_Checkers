@@ -6,6 +6,10 @@ where it wants to move.
 
 This process of picture taking repeats until a sole victor remains.
 
+Example here:
+https://www.youtube.com/watch?v=DWDR86CJD-Q
+
+
 ## Example Images
 
 First take an image of our move:
