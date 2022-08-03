@@ -34,8 +34,8 @@ Converting to HSV:
 We use the image above to threshold by the intense yellow value
 seen along the lines of the checkerboard.
 
-![Threshold No Dilute](./ImageStepOutputs/dilute3.png "HSV Threshold No Dilution")
-![Threshold](./ImageStepOutputs/thresh3.png "HSV Threshold")
+![Threshold No Dilute](./ImageStepOutputs/thresh3.png "HSV Threshold No Dilution")
+![Threshold](./ImageStepOutputs/dilute3.png "HSV Threshold")
 
 From the image above, we can find the rectangles by first finding
 the contours of all the closed areas, and the creating a bounding
