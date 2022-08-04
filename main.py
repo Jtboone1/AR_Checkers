@@ -4,6 +4,7 @@ import numpy as np
 first_move = True
 blacks_move = [0, 0]
 imgc = None
+orig_img = None
 
 # Used to represent a square on the board.
 class CheckerSpace:
@@ -282,12 +283,14 @@ def make_move():
     global board
     global blacks_move
     global imgc
+    global orig_img
 
     # If this is the first move, we read an image
     if first_move:
         print("Move your piece, take a picture, and save it in the \"OurMoves\" folder")
         img_name = input("Please enter the name of the file: ")
         imgc = cv2.imread(f"./OurMoves/{img_name}.jpg")
+        orig_img = imgc.copy()
        
     # Draw computers move so the Player can move their piece on the physical board.
     if not first_move:
@@ -306,9 +309,11 @@ def make_move():
                 piece.checker_type = "black"
 
         cv2.line(move_img, p1, p2, (0, 255, 0), 30)
+        cv2.line(orig_img, p1, p2, (0, 255, 0), 30)
 
         # resize image and display
-        cv2.imshow("Move Black Piece", resize(move_img))
+        cv2.imshow("AI Move Overlay", resize(move_img))
+        cv2.imshow("AI Move Original", resize(orig_img))
 
         # Wait for keypress to close.
         print("AI has chosen! Move black piece to the displayed location, then press any key on the image to continue...")
@@ -320,7 +325,8 @@ def make_move():
         print("Move your piece, take a picture, and save it in the \"OurMoves\" folder")
         img_name = input("Please enter the name of the file: ")
         imgc = cv2.imread(f"./OurMoves/{img_name}.jpg")
-    
+        orig_img = imgc.copy()
+
     # Get circles and rectangles
     (board_circs, img_gray) = detect_circles(imgc)
     (board_rects, empty_canvas) = detect_rectangles(imgc)
@@ -336,6 +342,9 @@ def make_move():
 
     # Show img with the overlayed empty canvas.
     cv2.imshow("Final", resize(imgc))
+
+    # Show original image.
+    cv2.imshow("Original", resize(orig_img))
 
     # Find Position of piece before it moves.
     position = 0
