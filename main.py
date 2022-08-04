@@ -212,7 +212,7 @@ def draw_board(imgc, images, board_rects, board_circs):
         p1 = (int(rect[0]), int(rect[1]))
         p2 = (int(rect[0]+rect[2]), int(rect[1]+rect[3]))
 
-        for img in images:
+        for img in images[1:]:
             cv2.rectangle(img, p1, p2, color, 15)
 
     # Use rectangles to construct new board by iterating over circles.
